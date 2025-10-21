@@ -1,4 +1,4 @@
-import userService from '../service/userService.js'
+const userService = require('../service/userService.js')
 
 class UserController {
   async registration(req, res, next) {
@@ -40,4 +40,4 @@ class UserController {
   }
 }
 
-export default new UserController()
+module.exports = new UserController()
