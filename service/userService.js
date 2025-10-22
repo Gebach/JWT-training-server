@@ -1,5 +1,5 @@
 import userModel from '../modules/user-model.js'
-import { hash } from 'bcrypt'
+import bcrypt from 'bcrypt'
 import { v4 } from 'uuid'
 import mailService from './mailService.js'
 import tokenService from './tokenService.js'
@@ -12,7 +12,7 @@ class UserService {
     if (candidate) {
       throw ApiError.BadRequest(`Пользователь с таким почтовым ящиком ${email} уже существует!`)
     }
-    const hashPassword = await hash(pass, 3)
+    const hashPassword = await bcrypt.hash(pass, 3)
     const activationLink = v4()
     const user = await userModel.create({ email, password: hashPassword, activationLink })
     await mailService.sendActivationMail(email, `${process.env.API_URL}/api/activate/${activationLink}`)
@@ -35,6 +35,23 @@ class UserService {
 
     user.isActivated = true
     await user.save()
+  }
+
+  async login(email, password) {
+    const user = await userModel.findOne({ email })
+    if (!user) {
+      throw ApiError.BadRequest(`Пользователь с таким ${email} не найден`)
+    }
+
+    const isPassEquals = bcrypt.compare(password, user.password)
+    if (!isPassEquals) {
+      throw ApiError.BadRequest('Неверный пароль')
+    }
+    const userDto = new UserDto(user)
+    const tokens = tokenService.generateTokens({ ...userDto })
+    await tokenService.saveToken(userDto.id, tokens.refreshToken)
+
+    return { ...tokens, user: userDto }
   }
 }
 
